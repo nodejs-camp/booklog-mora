@@ -126,7 +126,7 @@ app.get('/1/post/:id', function(req, res) {
 	var id = req.params.id;
 	var model = req.app.db.model;
 
-	model.findOne(function(err, post) {
+	model.findOne({_id: id}, function(err, post) {
 		res.send({post: post});	
 	});
 });
