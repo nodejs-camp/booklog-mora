@@ -13,6 +13,24 @@ var pub = __dirname + '/public';
 var app = express();
 app.use(express.static(pub));
 
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost/booklog2');
+
+var db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function callback () {
+  console.log('MongoDB: connected.');	
+});
+
+var postSchema = new mongoose.Schema({
+    subject: { type: String, default: ''},
+    content: String
+});
+
+app.db = {
+	model: mongoose.model('Post', postSchema)
+};
+
 // Optional since express defaults to CWD/views
 
 app.set('views', __dirname + '/views');
@@ -25,10 +43,16 @@ app.set('view engine', 'jade');
 var posts = [{
 	subject: "Hello",
 	content: "Hi !"
-},{
+}, {
 	subject: "World",
 	content: "Hi !"
 }];
+
+var bodyParser = require('body-parser');
+
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
 
 app.all('*', function(req, res, next){
   if (!req.get('Origin')) return next();
@@ -56,6 +80,9 @@ app.get('/download', function(req, res) {
 	workflow.on('vaidate', function() {
 		var password = req.query.password;
 
+		if (typeof(req.retries) === 'undefined')
+			req.retries = 3;
+
 		if (password === '123456') {
 			return workflow.emit('success');
 		}
@@ -72,6 +99,12 @@ app.get('/download', function(req, res) {
 	});
 
 	workflow.on('error', function() {
+		if (req.retries > 0) {
+			req.retries--;
+			workflow.outcome.retries = req.retries;
+			workflow.emit('response');
+		}
+
 		workflow.outcome.success = false;
 		workflow.emit('response');
 	});
@@ -89,17 +122,36 @@ app.get('/post', function(req, res) {
 	});
 });
 
-app.get('/1/post', function(req, res) {
-	res.send({posts: posts});
+app.get('/1/post/:id', function(req, res) {	
+	var id = req.params.id;
+	var model = req.app.db.model;
+
+	model.findOne(function(err, post) {
+		res.send({post: post});	
+	});
 });
 
+app.get('/1/post', function(req, res) {	
+	var model = req.app.db.model;
+
+	model.find(function(err, posts) {
+		res.send({posts: posts});	
+	});
+});
+
+
 app.post('/1/post', function(req, res) {
+	var model = req.app.db.model;
+
 	var subject;
 	var content;
-	
+
 	if (typeof(req.body) === 'undefined') {
 		subject = req.query.subject;
 		content = req.query.content;
+	} else {
+		subject = req.body.subject;
+		content = req.body.content;		
 	}
 
 	var post = {
@@ -107,7 +159,9 @@ app.post('/1/post', function(req, res) {
 		content: content
 	};
 
-	posts.push(post);
+	//posts.push(post);
+	var card = new model(post);
+	card.save();
 
 	res.send({ status: 'OK'});
 });
