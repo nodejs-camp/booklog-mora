@@ -19,12 +19,12 @@ mongoose.connect('mongodb://localhost/booklog2');
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function callback () {
-  console.log('MongoDB: connected.');	
+  console.log('MongoDB: connected.');
 });
 
 var postSchema = new mongoose.Schema({
-    subject: { type: String, default: ''},
-    content: String
+	subject: { type: String, default: ''},
+	content: String
 });
 
 app.db = {
@@ -48,11 +48,42 @@ var posts = [{
 	content: "Hi !"
 }];
 
+
+// Redirect the user to Facebook for authentication.  When complete,
+// Facebook will redirect the user back to the application at
+//     /auth/facebook/callback
+//使用者登入
+app.get('/auth/facebook', passport.authenticate('facebook'));
+
+// Facebook will redirect the user to this URL after approval.  Finish the
+// authentication process by attempting to obtain an access token.  If
+// access was granted, the user will be logged in.  Otherwise,
+// authentication has failed.
+// 使用者登入成功導入畫面
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { successRedirect: '/',
+                                      failureRedirect: '/login' }));
+
 var bodyParser = require('body-parser');
 
 app.use(bodyParser.urlencoded({
   extended: true
 }));
+
+var passport = require('passport')
+  , FacebookStrategy = require('passport-facebook').Strategy;
+
+passport.use(new FacebookStrategy({
+	clientID: 724904237563999,//APP_ID
+	clientSecret: a8ff741d7082961cba04a40059e4302a, //登入facebook的key，APP_Secret
+	callbackURL: "http://localhost:3000/auth/facebook/callback"
+  },
+  //登入成功callback fuction
+  function(accessToken, refreshToken, profile, done) {
+	console.log(profile);
+  }
+));
+
 
 app.all('*', function(req, res, next){
   if (!req.get('Origin')) return next();
@@ -65,7 +96,7 @@ app.all('*', function(req, res, next){
   next();
 });
 
-app.get('/welcome', function(req, res) {
+app.get('/welcome', function(req, res) { //get api
 	res.render('index');
 });
 
@@ -92,7 +123,7 @@ app.get('/download', function(req, res) {
 
 	workflow.on('success', function() {
 		workflow.outcome.success = true;
-		workflow.outcome.redirect = { 
+		workflow.outcome.redirect = {
 			url: '/welcome'
 		};
 		workflow.emit('response');
@@ -122,20 +153,20 @@ app.get('/post', function(req, res) {
 	});
 });
 
-app.get('/1/post/:id', function(req, res) {	
+app.get('/1/post/:id', function(req, res) {
 	var id = req.params.id;
 	var model = req.app.db.model;
 
 	model.findOne({_id: id}, function(err, post) {
-		res.send({post: post});	
+		res.send({post: post});
 	});
 });
 
-app.get('/1/post', function(req, res) {	
+app.get('/1/post', function(req, res) {
 	var model = req.app.db.model;
 
 	model.find(function(err, posts) {
-		res.send({posts: posts});	
+		res.send({posts: posts});
 	});
 });
 
@@ -151,7 +182,7 @@ app.post('/1/post', function(req, res) {
 		content = req.query.content;
 	} else {
 		subject = req.body.subject;
-		content = req.body.content;		
+		content = req.body.content;
 	}
 
 	var post = {

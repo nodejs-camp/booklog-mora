@@ -1,6 +1,28 @@
 doctype html
 html
-  include header
-  body
-    h1 Welcome to Booklog
+    include header
+    body
+     nav.navbar.navbar-default(role='navigation')
+         .container
+             .navbar-header
+               button.navbar-toggle(type='button', data-toggle='collapse', data-target='#bs-example-navbar-collapse-1')
+                 span.sr-only Toggle navigation
+                 span.icon-bar
+                 span.icon-bar
+                 span.icon-bar
+               a.navbar-brand(href='index.html') Business Casual
+             #bs-example-navbar-collapse-1.collapse.navbar-collapse
+               ul.nav.navbar-nav
+                 li
+                   a(href='index.html') Home
+                 li
+                   a(href='about.html') About
+                 li
+                   a(href='blog.html') Blog
+                 li
+                   a(href='contact.html') Contact
     block content
+    <!-- 在layout宣告script為全域所有頁面皆可使用 -->
+    script(src='vendor/underscore/underscore-min.js')
+    script(src='vendor/backbone/backbone.js')
+    block feet
