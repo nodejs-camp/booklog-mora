@@ -24,11 +24,22 @@ db.once('open', function callback () {
 
 var postSchema = new mongoose.Schema({
 	subject: { type: String, default: ''},
-	content: String
+	content: String,
+
+	userId : { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
+var userSchema = new mongoose.Schema({
+    username: { type: String, unique: true },
+    displayName: { type: String, unique: true },
+    email: { type: String, unique: true },
+    timeCreated: { type: Date, default: Date.now },
+    facebook: {}
 });
 
 app.db = {
-	model: mongoose.model('Post', postSchema)
+	posts: mongoose.model('Post', postSchema),
+	users: mongoose.model('User', userSchema)
 };
 
 // Optional since express defaults to CWD/views
@@ -40,14 +51,51 @@ app.set('views', __dirname + '/views');
 // (although you can still mix and match)
 app.set('view engine', 'jade');
 
-var posts = [{
-	subject: "Hello",
-	content: "Hi !"
-}, {
-	subject: "World",
-	content: "Hi !"
-}];
+var bodyParser = require('body-parser');
+var session = require('express-session');
+var passport = require('passport')
+	,FacebookStrategy = require('passport-facebook').Strategy;
 
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
+
+
+app.use(session({ secret: 'key ssession' })); //use 代表middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(obj, done) {
+  done(null, obj);
+});
+
+passport.use(new FacebookStrategy({
+	clientID: "724904237563999",//APP_ID
+	clientSecret: "a8ff741d7082961cba04a40059e4302a", //登入facebook的key，APP_Secret
+	callbackURL: "http://localhost:3000/auth/facebook/callback"
+  },
+  //登入成功callback fuction
+  function(accessToken, refreshToken, profile, done) {
+
+
+    var obj = {
+    	username: profile.username,
+    	displayName: profile.displayName,
+    	email: '',
+    	facebook: profile //將資料一筆一筆寫入對應資料欄位
+    };
+
+    var user = new app.db.users(obj); //new db 將資料寫回DB
+    user.save();
+
+	console.log(profile);
+	return done(null, user); //回傳使用者資訊
+  }
+));
 
 // Redirect the user to Facebook for authentication.  When complete,
 // Facebook will redirect the user back to the application at
@@ -64,26 +112,6 @@ app.get('/auth/facebook/callback',
   passport.authenticate('facebook', { successRedirect: '/',
                                       failureRedirect: '/login' }));
 
-var bodyParser = require('body-parser');
-
-app.use(bodyParser.urlencoded({
-  extended: true
-}));
-
-var passport = require('passport')
-  , FacebookStrategy = require('passport-facebook').Strategy;
-
-passport.use(new FacebookStrategy({
-	clientID: 724904237563999,//APP_ID
-	clientSecret: a8ff741d7082961cba04a40059e4302a, //登入facebook的key，APP_Secret
-	callbackURL: "http://localhost:3000/auth/facebook/callback"
-  },
-  //登入成功callback fuction
-  function(accessToken, refreshToken, profile, done) {
-	console.log(profile);
-  }
-));
-
 
 app.all('*', function(req, res, next){
   if (!req.get('Origin')) return next();
@@ -96,8 +124,21 @@ app.all('*', function(req, res, next){
   next();
 });
 
-app.get('/welcome', function(req, res) { //get api
+app.get('/', function(req, res, next) {
+	if (req.isAuthenticated()) {
+		next();
+	} else {
+		res.render('login');
+	}
+});
+
+app.get('/', function(req, res) {
 	res.render('index');
+});
+
+app.get('/logout', function(req, res){
+  req.logout();
+  res.redirect('/');
 });
 
 app.get('/download', function(req, res) {
@@ -148,36 +189,45 @@ app.get('/download', function(req, res) {
 });
 
 app.get('/post', function(req, res) {
-	res.render('post', {
-		posts: posts
-	});
+	res.render('post');
 });
 
 app.get('/1/post/:id', function(req, res) {
 	var id = req.params.id;
-	var model = req.app.db.model;
+	var posts = req.app.db.posts;
 
-	model.findOne({_id: id}, function(err, post) {
+	posts.findOne({_id: id}, function(err, post) {
 		res.send({post: post});
 	});
 });
 
 app.get('/1/post', function(req, res) {
-	var model = req.app.db.model;
+	var posts = req.app.db.posts;
 
-	model.find(function(err, posts) {
+	posts
+	.find()
+	.exec(function(err, posts) {
 		res.send({posts: posts});
 	});
 });
 
+app.post('/1/post', function(req, res, next) {
+	if (req.isAuthenticated()) {
+		next();
+	} else {
+		res.render('login');
+	}
+});
+
 
 app.post('/1/post', function(req, res) {
-	var model = req.app.db.model;
+	var posts = req.app.db.posts;
+	var userId = req.user._id;
 
 	var subject;
 	var content;
 
-	if (typeof(req.body) === 'undefined') {
+	if (typeof(req.body.subject) === 'undefined') {
 		subject = req.query.subject;
 		content = req.query.content;
 	} else {
@@ -185,14 +235,14 @@ app.post('/1/post', function(req, res) {
 		content = req.body.content;
 	}
 
-	var post = {
+	var data = {
+		userId: userId,
 		subject: subject,
 		content: content
 	};
 
-	//posts.push(post);
-	var card = new model(post);
-	card.save();
+	var post = new posts(data);
+	post.save();
 
 	res.send({ status: 'OK'});
 });

@@ -1,20 +1,18 @@
 extend layout
 
 block feet
- script(src='public/views/index.js')
+ script(src='views/index.js')
 
 block content
-    div#blog-post
+    div#blog-post(style='color: #fff;')
 
     script(type='text/template', id='tmpl-post')
-        <% _.each(posts, function(post){)%>
+        <% _.each(posts, function(post){ %>
         hr
         h2.intro-text.text-center
-            | Beautiful boxes
-            strong to showcase your content
+            | <%= post.subject %>
         hr
         p
-            | Use as many boxes as you like, and put anything you want in them! They are great for just about anything, the sky's the limit!
-        p
-            | Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc placerat diam quis nisl vestibulum dignissim. In hac habitasse platea dictumst. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
+        h2.intro-text.text-center
+            | <%= post.content %>
         <% });%>
