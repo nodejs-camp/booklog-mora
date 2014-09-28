@@ -4,15 +4,51 @@ block feet
  script(src='views/index.js')
 
 block content
-    div#blog-post(style='color: #fff;')
+    .well#search-section
+        h4 Search Key Word
+        .input-group
+            input.form-control#search-tag(type='text')
+            span.input-group-btn
+            button.btn.btn-default.btn-search(type='button')
+                span.glyphicon.glyphicon-search
 
+    div#actions
+        button.btn.btn-success.btn-filter 日期排序
+    div#blog-post(style='color: #fff;')
     script(type='text/template', id='tmpl-post')
-        <% _.each(posts, function(post){ %>
+        <% _.each(posts, function(post) { %>
+        <br>
         hr
         h2.intro-text.text-center
             | <%= post.subject %>
         hr
-        p
         h2.intro-text.text-center
+            | by
+            | &nbsp;<%= post.userId.facebook.displayName %><br>
+            span.glyphicon.glyphicon-time
+            | Posted on <%= post.userId.timeCreated %><br>
             | <%= post.content %>
         <% });%>
+    script(type='text/template', id='tmpl-results')
+        <% _.each(posts, function(post) { %>
+        .well
+        h1 <%= post.subject %>
+        <% }); %>
+
+    script(type='text/template', id='tmpl-new')
+    form.form-horizontal
+    fieldset
+    legend Form Name
+    // Text input
+    .control-group
+      label.control-label(for='txtTitle') 文章標題
+    .controls
+        input#txtTitle.input-xlarge(name='txtTitle', type='text', placeholder='input title')
+    .control-group
+      label.control-label(for='txtContent') 文章內容
+    .controls
+        textarea#txtContent(name='txtContent') write some to us
+    .control-group
+      label.control-label(for='btnClick')
+    .controls
+        button#btnClick.btn.btn-warning(name='btnClick') Save

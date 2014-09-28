@@ -26,8 +26,11 @@ var postSchema = new mongoose.Schema({
 	subject: { type: String, default: ''},
 	content: String,
 
+	timeCreated : {type: Date, default: Date.now},
 	userId : { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
+
+postSchema.index({ content: 'text' });
 
 var userSchema = new mongoose.Schema({
     username: { type: String, unique: true },
@@ -78,22 +81,23 @@ passport.use(new FacebookStrategy({
 	clientSecret: "a8ff741d7082961cba04a40059e4302a", //登入facebook的key，APP_Secret
 	callbackURL: "http://localhost:3000/auth/facebook/callback"
   },
-  //登入成功callback fuction
+  //登入成功callback fuction (lamda寫法)
   function(accessToken, refreshToken, profile, done) {
-
-
-    var obj = {
-    	username: profile.username,
-    	displayName: profile.displayName,
-    	email: '',
-    	facebook: profile //將資料一筆一筆寫入對應資料欄位
-    };
-
-    var user = new app.db.users(obj); //new db 將資料寫回DB
-    user.save();
-
-	console.log(profile);
-	return done(null, user); //回傳使用者資訊
+  	app.db.users.findOne({"facebook._json.id": profile._json.id},function(err,user){
+  		if (!user) {
+		    var obj = {
+		    	username: profile.username,
+		    	displayName: profile.displayName,
+		    	email: '',
+		    	facebook: profile //將資料一筆一筆寫入對應資料欄位
+		    };
+			var doc = new app.db.users(obj);//new db 將資料寫回DB
+		   	doc.save();
+			user = doc;
+  		}
+		console.log(profile); //在console視窗印出訊息
+		return done(null, user); //回傳使用者資訊
+  	})
   }
 ));
 
@@ -201,11 +205,30 @@ app.get('/1/post/:id', function(req, res) {
 	});
 });
 
+//new app.get
+app.get('1/post/tag/:tag',function(req,res){
+	var tag = req.params.tag;
+
+	console.log("查詢中.....");
+})
+
 app.get('/1/post', function(req, res) {
 	var posts = req.app.db.posts;
+	var sort = req.query.sort;
+	var options = {};
+
+	options = {
+		sort : 'timeCreated'
+	};
+	if (sort === 'data') {
+		options.sort = '-timeCreated' // -代表升以最新時間作為排序
+	}
 
 	posts
-	.find()
+	.find({})
+	.populate('userId')
+	.sort(options.sort)
+	//.sort({'timeCreated':-1})//以時間排序
 	.exec(function(err, posts) {
 		res.send({posts: posts});
 	});
@@ -219,7 +242,7 @@ app.post('/1/post', function(req, res, next) {
 	}
 });
 
-
+//處理資料
 app.post('/1/post', function(req, res) {
 	var posts = req.app.db.posts;
 	var userId = req.user._id;
